@@ -1,6 +1,6 @@
 # tetris.js
 
-Straightforward, open-source implementation of Tetris in JavaScript.
+Straightforward, open-source implementation of Tetris using the [p5.js](https://p5js.org/) library.
 
 ### How to play tetris.js
 * Clone or download this repository
