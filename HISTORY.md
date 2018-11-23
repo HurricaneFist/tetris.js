@@ -1,6 +1,6 @@
 # Release Notes
 
-### v0.2.0 
+### v0.1.1 
 * Eased difficulty scaling
 * Added outlines to line clears
 * Made horizontal movement more Tetris-like
