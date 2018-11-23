@@ -1,4 +1,4 @@
-# Release History
+# Release Notes
 
 ### v0.2.0 
 * Eased difficulty scaling
