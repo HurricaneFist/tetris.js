@@ -25,7 +25,7 @@ var SCORE_XPOS          = BLOCK_SIZE;
 var SCORE_YPOS          = BLOCK_SIZE;
 var MIN_FRAMES_PER_STEP = 10;
 var framesPerStep       = 60;
-var MAX_PER_STEP_TIMER  = 300;
+var MAX_PER_STEP_TIMER  = 360;
 var framesPerStepTimer  = MAX_PER_STEP_TIMER;
 
 var blockBag             = [];
@@ -71,10 +71,7 @@ function draw() {
     for (var i = 0; i < GRID_WIDTH; i++) {
         for (var j = 0; j < GRID_HEIGHT; j++) {
             if (grid[i][j] != -1) {
-                if (grid[i][j] == N_BLOCK_COLORS)
-                    noStroke();
-                else 
-                    stroke(0);
+                stroke(0);
                 fill(BLOCK_COLORS[grid[i][j]]);
                 rect(BLOCK_SIZE * i, BLOCK_SIZE * j, BLOCK_SIZE, BLOCK_SIZE);
             }
@@ -141,9 +138,9 @@ function keyPressed() {
     
     // shifting 
     if (keyCode == 37) {
-        playerShiftState = [-1, 0];
+        playerBlock.shift(-1, 0);
     } else if (keyCode == 39) {
-        playerShiftState = [1, 0];
+        playerBlock.shift(1, 0);
     } else if (keyCode == 40) {
         playerShiftState = [0, 1];
     }
