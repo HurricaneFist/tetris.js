@@ -11,5 +11,3 @@ Straightforward, open-source implementation of Tetris using the [p5.js](https://
 
 * Arrow keys to move
 * Space bar to rotate
-
-(Version 0.1.0)
