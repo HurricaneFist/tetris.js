@@ -1,3 +1,5 @@
+var VERSION_STRING = "v0.2.0";
+
 var BLOCK_SIZE = 32;
 
 var grid        = []; // any value other than -1 is non-empty
@@ -8,6 +10,15 @@ var X_START        = 3;
 var Y_START        = 0;
 var N_BLOCK_COLORS = 7;
 var N_BLOCK_TYPES  = 7;
+
+// key controls mapping
+var KEY = {
+    LEFT:   37,
+    RIGHT:  39,
+    DOWN:   40,
+    ROTATE: 38,
+    SPACE:  32 
+};
 
 // game states
 var STATE = {
@@ -28,13 +39,43 @@ var framesPerStep       = 60;
 var MAX_PER_STEP_TIMER  = 360;
 var framesPerStepTimer  = MAX_PER_STEP_TIMER;
 
-var blockBag             = [];
-var colorBag             = [];
+var blockBag;
+var preview;
+var PREVIEW_SIZE   = 2;
+var PREVIEW_OFFSET = 1;
+
 var playerBlock;
 var playerShiftState     = [0, 0];
 var PLAYER_SHIFT_FRAMES  = 2;
 var PLAYER_BLOCK_SIZE    = 4;
 var SCORING_TABLE        = [0, 100, 250, 400, 1000];
+
+var gameFont;
+var gameMusic;
+var gameStarted = false;
+var scoreSounds = [];
+var miscSounds = {};
+
+var DROP_SOUND_FILE = "assets/click.wav";
+
+var SCORE_SOUND_FILES = [
+    "assets/Rise01.mp3",
+    "assets/Rise02.mp3",
+    "assets/Rise03.mp3",
+    "assets/FX141.wav",
+];  
+
+function preload() {
+    // load assets
+    gameFont = loadFont("assets/uni0553-webfont.ttf");
+    gameMusic = loadSound("assets/Twister Tetris.mp3");
+
+    for (var i = 0; i < SCORE_SOUND_FILES.length; i++) {
+        scoreSounds.push(loadSound(SCORE_SOUND_FILES[i]));
+    }
+
+    miscSounds["DROP"] = loadSound(DROP_SOUND_FILE);
+}
 
 function setup() {
     createCanvas(BLOCK_SIZE * GRID_WIDTH, BLOCK_SIZE * GRID_HEIGHT);
@@ -47,15 +88,14 @@ function setup() {
         }
     }
 
-    // fill up the block bag
-    for (var i = 0; i < N_BLOCK_TYPES; i++)
-        blockBag.push(i);
+    // create and fill the block bag
+    blockBag = new BlockBag();
+
+    // create the preview window
+    preview = new Preview();
     
     // create the player block
     playerBlock = new PlayerBlock();
-
-    // start the game
-    gameState = STATE.PLAY;
 }
 
 function draw() {
@@ -78,10 +118,34 @@ function draw() {
         }
     }
 
+    // draw the start screen
+    if (gameState == STATE.START) {
+        textFont(gameFont);
+        noStroke();
+        textSize(30);
+
+        for (var i = 0; i < BLOCK_COLORS.length; i++) {
+            fill(BLOCK_COLORS[i]);
+            text("TETRIS", SCORE_XPOS, SCORE_YPOS + BLOCK_SIZE*.5*i);
+
+            if (i == BLOCK_COLORS.length-1) {
+                textSize(15);
+                text(VERSION_STRING, SCORE_XPOS + 4*BLOCK_SIZE, SCORE_YPOS + BLOCK_SIZE*.5*i);
+            }
+        }
+
+        textSize(20);
+        text("Press any button to play.", SCORE_XPOS, (SCORE_YPOS + BLOCK_SIZE * (GRID_HEIGHT-1))/2);
+
+        textSize(20);
+        text("Ian K. Lee", BLOCK_SIZE/2, BLOCK_SIZE * (GRID_HEIGHT-.5));
+    }
+
     // game running 
     if (gameState == STATE.PLAY) {
         // player block
         playerBlock.step();
+        preview.step();
     } else if (gameState == STATE.SCORE) {
         if (--scoringTimer == 0) {
             // delete all line clears on the grid, shift remaining rows down
@@ -119,53 +183,94 @@ function draw() {
     } else if (gameState == STATE.FINISH) {
         fill(0, 150);
         rect(0, 0, BLOCK_SIZE * GRID_WIDTH, BLOCK_SIZE * GRID_HEIGHT);
+
+        if (gameStarted) {
+            gameStarted = false;
+            gameMusic.stop();
+        }
     }
 
-    // draw the HUD
-    textFont("Consolas");
-    fill(255);
-    noStroke();
-    textSize(20);
-    text("Score: ", SCORE_XPOS, SCORE_YPOS);
-    text(score, SCORE_XPOS + 75, SCORE_YPOS);
+    // draw the score screen
+    if (gameState != STATE.START) {
+        textFont(gameFont);
+        fill(255);
+        noStroke();
+        textSize(20);
+        text("Score: ", SCORE_XPOS, SCORE_YPOS);
+        text(score, SCORE_XPOS + 75, SCORE_YPOS);
+    }
+}
+
+function startTheGame() {
+    if (gameState == STATE.START) {
+        gameState = STATE.PLAY;
+        gameStarted = true;
+        gameMusic.setVolume(0.1);
+        gameMusic.play();
+    }
 }
 
 function keyPressed() {
+    if (gameState == STATE.START) {
+        startTheGame();
+        return;
+    }
+
+    if (gameState == STATE.FINISH) {
+        return;
+    }
+
     // rotation
-    if (keyCode == 32) {
+    if (keyCode == KEY.ROTATE) {
         playerBlock.rotate();
     }
     
     // shifting 
-    if (keyCode == 37) {
+    if (keyCode == KEY.LEFT) {
         playerBlock.shift(-1, 0);
-    } else if (keyCode == 39) {
+    } else if (keyCode == KEY.RIGHT) {
         playerBlock.shift(1, 0);
-    } else if (keyCode == 40) {
+    } else if (keyCode == KEY.DOWN) {
         playerShiftState = [0, 1];
+    }
+
+    // dropping
+    if (keyCode == KEY.SPACE) {
+        playerBlock.drop();
+    }
+}
+
+function mousePressed() {
+    if (gameState == STATE.START) {
+        startTheGame();
     }
 }
 
 function keyReleased() {
-    if (keyCode != 32) // 32 is spacebar, which is for rotation
+    if (keyCode != KEY.ROTATE)
         playerShiftState = [0, 0];
 }
 
 class PlayerBlock {
     constructor() {
-        this.xpos  = X_START;
-        this.ypos  = Y_START;
+        this.xpos = X_START;
+        this.ypos = Y_START;
 
         // initialize timers
         this.downShiftTimer   = framesPerStep;
         this.playerShiftTimer = PLAYER_SHIFT_FRAMES;
 
-        this.blockTypeIndex     = this.getFromBlockBag();
-        this.blockColorIndex    = this.getFromColorBag();
+        var blockInfo = blockBag.getNextBlockInfo();
+        this.blockTypeIndex = blockInfo.blockType;
+        this.blockColorIndex = blockInfo.blockColor;
+
         this.blockRotationIndex = 0;
         
         // initialize player block pairs
         this.initializePairs();
+
+        // initialize ghost block info
+        this.ghostYDiff = 0;
 
         // check if new player block just triggered game over
         if (!this.checkFree(0, 0)) {
@@ -188,6 +293,24 @@ class PlayerBlock {
 
             if (playerShiftState != [0, 1])
                 this.shift(0, 1);
+        }
+
+        // calculate and draw the ghost block
+        this.ghostYDiff = 0;
+        while (this.checkFree(0, this.ghostYDiff+1)) {
+            this.ghostYDiff++;
+        }
+
+        stroke(255);
+        var ghostBlockColors = [];
+        for (var i = 0; i < BLOCK_COLORS[this.blockColorIndex].length; i++) {
+            var col = BLOCK_COLORS[this.blockColorIndex][i];
+            col /= 4;
+            ghostBlockColors.push(col);
+        }
+        fill(ghostBlockColors);
+        for (var i = 0; i < this.pairs.length; i++) {
+            rect(BLOCK_SIZE * this.pairs[i].x, BLOCK_SIZE * (this.pairs[i].y + this.ghostYDiff), BLOCK_SIZE, BLOCK_SIZE);
         }
 
         // draw the player block
@@ -224,11 +347,28 @@ class PlayerBlock {
             checkPairs.push({x: this.xpos + BLOCK_TYPES[this.blockTypeIndex][checkRotationIndex][i].x, 
                              y: this.ypos + BLOCK_TYPES[this.blockTypeIndex][checkRotationIndex][i].y});
 
+            if (checkPairs[i].x < 0 || checkPairs[i].x >= GRID_WIDTH ||
+                checkPairs[i].y < 0 || checkPairs[i].y >= GRID_HEIGHT)
+                return false;
+
             if (grid[checkPairs[i].x][checkPairs[i].y] != -1)
                 return false;
         }
 
         return true;
+    }
+
+    drop() {
+        miscSounds["DROP"].play();
+
+        this.ypos += this.ghostYDiff;
+        for (var i = 0; i < this.pairs.length; i++) {
+            this.pairs[i].y += this.ghostYDiff;
+        }
+
+        // shift down immediately afterwards to quickly reset player block
+        score += this.ghostYDiff; 
+        this.shift(0, 1);
     }
 
     initializePairs() {
@@ -238,33 +378,6 @@ class PlayerBlock {
             this.pairs.push({x: this.xpos + BLOCK_TYPES[this.blockTypeIndex][this.blockRotationIndex][i].x, 
                              y: this.ypos + BLOCK_TYPES[this.blockTypeIndex][this.blockRotationIndex][i].y});
     }
-
-    getFromBlockBag() {
-        if (blockBag.length == 0) {
-            for (var i = 0; i < N_BLOCK_TYPES; i++)
-                blockBag.push(i);
-        }
-
-        var indexToSplice = Math.floor(blockBag.length * Math.random());
-        var newBlockType = blockBag[indexToSplice];
-        blockBag.splice(indexToSplice, 1);
-
-        return newBlockType;
-    }
-
-    getFromColorBag() {
-        if (colorBag.length == 0) {
-            for (var i = 0; i < N_BLOCK_COLORS; i++)
-                colorBag.push(i);
-        }
-
-        var indexToSplice = Math.floor(colorBag.length * Math.random());
-        var newBlockColor = colorBag[indexToSplice];
-        colorBag.splice(indexToSplice, 1);
-
-        return newBlockColor;
-    }
-
 
     rotate() {
         if (this.checkRotationFree()) {
@@ -320,12 +433,73 @@ class PlayerBlock {
                 if (framesPerStep == MIN_FRAMES_PER_STEP)
                     score += SCORING_TABLE[nLineClears];
 
-                if (nLineClears > 0)
+                if (nLineClears > 0) {
+                    scoreSounds[nLineClears-1].play();
                     scoringTimer = nLineClears * SCORING_FRAMES;
+                }
 
                 // create and set new player block
                 playerBlock = new PlayerBlock();
             }
         }
     }
-}
+};
+
+class BlockBag {
+    constructor() {
+        this.blockBag = [];
+        this.colorBag = [];
+
+        this.nextBlockBagIndex = -1;
+        this.nextColorBagIndex = -1;
+        this.determineNextBlock();
+    }
+
+    determineNextBlock() {
+        if (this.blockBag.length == 0) {
+            for (var i = 0; i < N_BLOCK_TYPES; i++)
+                this.blockBag.push(i);
+        }
+
+        if (this.colorBag.length == 0) {
+            for (var i = 0; i < N_BLOCK_COLORS; i++)
+                this.colorBag.push(i);
+        }
+
+        this.nextBlockBagIndex  = Math.floor(this.blockBag.length * Math.random());
+        this.nextColorBagIndex  = Math.floor(this.colorBag.length * Math.random());
+    }
+
+    getNextBlockInfo() {
+        var res = { 
+            blockType:  this.blockBag[this.nextBlockBagIndex], 
+            blockColor: this.colorBag[this.nextColorBagIndex] 
+        };
+
+        this.blockBag.splice(this.nextBlockBagIndex, 1);
+        this.colorBag.splice(this.nextColorBagIndex, 1);
+
+        this.determineNextBlock();
+        return res;
+    }
+};
+
+class Preview {
+    step() {
+        // draw the next block
+        fill(BLOCK_COLORS[blockBag.colorBag[blockBag.nextColorBagIndex]]);
+        stroke(0);
+        for (var i = 0; i < BLOCK_TYPES[blockBag.blockBag[blockBag.nextBlockBagIndex]][0].length; i++) {
+            var DRAW_X = BLOCK_SIZE * (GRID_WIDTH-2) + BLOCK_SIZE/4 * PREVIEW_SIZE * 
+                         BLOCK_TYPES[blockBag.blockBag[blockBag.nextBlockBagIndex]][0][i].x;
+            var DRAW_Y = BLOCK_SIZE/4 * PREVIEW_SIZE * BLOCK_TYPES[blockBag.blockBag[blockBag.nextBlockBagIndex]][0][i].y;
+
+            rect(DRAW_X-PREVIEW_OFFSET-1, DRAW_Y+PREVIEW_OFFSET, BLOCK_SIZE/PREVIEW_SIZE, BLOCK_SIZE/PREVIEW_SIZE);
+        }
+
+        // draw the preview frame
+        stroke(255);
+        noFill();
+        rect(BLOCK_SIZE * (GRID_WIDTH-PREVIEW_SIZE) - PREVIEW_OFFSET-1, PREVIEW_OFFSET, 2*BLOCK_SIZE, 2*BLOCK_SIZE); 
+    }
+};

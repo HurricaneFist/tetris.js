@@ -1,13 +1,20 @@
 # tetris.js
 
-Straightforward, open-source implementation of Tetris using the [p5.js](https://p5js.org/) library.
+Straightforward, open-source implementation of Tetris.
 
 ### How to play tetris.js
 * Clone or download this repository
-* Open **index.html** in a web browser
+* In the directory of **index.html**, start up a simple server (**_python -m http.server_** or **_http-server_** with Node)
+* Navigate to the server (e.g. **_localhost:8080_**)
 * That's it!
 
 ### Controls
 
-* Arrow keys to move
-* Space bar to rotate
+* Right, left, down arrows to move
+* Spacebar to drop
+* Up arrow to rotate
+
+### About
+
+* Developed using [p5.js](https://p5js.org/) and [p5.sound.js](https://p5js.org/reference/#/libraries/p5.sound).
+* Music and sound effects by [poinl](https://opengameart.org/content/twister-tetris), [wobbleboxx](https://opengameart.org/content/level-up-power-up-coin-get-13-sounds), [Jesús Lastra](https://opengameart.org/content/sound-effects-sfx015), and [qubodup](https://opengameart.org/content/click) via [OpenGameArt](https://opengameart.org/).
