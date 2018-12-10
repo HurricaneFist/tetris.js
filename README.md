@@ -4,8 +4,8 @@ Straightforward, open-source implementation of Tetris.
 
 ### How to play tetris.js
 * Clone or download this repository
-* In the directory of **index.html**, start up a simple server (**_python -m http.server_** or **_http-server_** with Node)
-* Navigate to the server (e.g. **_localhost:8080_**)
+* In the directory of **index.html**, start up a simple server (**python -m http.server** or **http-server** with Node)
+* Navigate to the server (e.g. **localhost:8080**)
 * That's it!
 
 ### Controls
